@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"gorm.io/driver/postgres"
@@ -11,7 +12,7 @@ import (
 )
 
 type User struct {
-	ID   int
+	gorm.Model
 	Name string
 }
 
@@ -40,7 +41,32 @@ func greet(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(user.Name)
 }
 
+func create(w http.ResponseWriter, r *http.Request) {
+	db, err := OpenDB()
+	if err != nil {
+		log.Fatal(err)
+	}
+	db.AutoMigrate(&User{})
+	var users []User
+	stratTime1 := time.Now()
+	fmt.Fprintf(w, "%s\n", stratTime1)
+	for i := 1; i <= 10000; i++ {
+		user := User{Name: "kenshin" + strconv.Itoa(i)}
+		users = append(users, user)
+	}
+	endTime1 := time.Now()
+	fmt.Fprintf(w, "%s\n", endTime1)
+	fmt.Fprintf(w, "%s\n", endTime1.Sub(stratTime1))
+
+	stratTime := time.Now()
+	fmt.Fprintf(w, "%s\n", stratTime)
+	db.Create(&users)
+	endTime := time.Now()
+	fmt.Fprintf(w, "%s\n", endTime)
+	fmt.Fprintf(w, "%s\n", endTime.Sub(stratTime))
+}
 func main() {
 	http.HandleFunc("/", greet)
+	http.HandleFunc("/create", create)
 	http.ListenAndServe(":8080", nil)
 }
