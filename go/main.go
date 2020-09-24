@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"strconv"
 	"time"
 
@@ -25,48 +24,76 @@ func OpenDB() (*gorm.DB, error) {
 	return db, err
 }
 
-func greet(w http.ResponseWriter, r *http.Request) {
-	db, err := OpenDB()
-	if err != nil {
-		log.Fatal(err)
-	}
-	var user User
-	stratTime := time.Now()
-	fmt.Fprintf(w, "%s\n", stratTime)
-	db.Take(&user)
-	endTime := time.Now()
-	fmt.Fprintf(w, "%s\n", endTime)
-	fmt.Fprintf(w, "%s\n", endTime.Sub(stratTime))
-
-	fmt.Println(user.Name)
-}
-
-func create(w http.ResponseWriter, r *http.Request) {
-	db, err := OpenDB()
-	if err != nil {
-		log.Fatal(err)
-	}
-	db.AutoMigrate(&User{})
+func create(db *gorm.DB, executionTimes int) {
 	var users []User
-	stratTime1 := time.Now()
-	fmt.Fprintf(w, "%s\n", stratTime1)
-	for i := 1; i <= 10000; i++ {
+	for i := 1; i <= executionTimes; i++ {
 		user := User{Name: "kenshin" + strconv.Itoa(i)}
 		users = append(users, user)
 	}
-	endTime1 := time.Now()
-	fmt.Fprintf(w, "%s\n", endTime1)
-	fmt.Fprintf(w, "%s\n", endTime1.Sub(stratTime1))
-
 	stratTime := time.Now()
-	fmt.Fprintf(w, "%s\n", stratTime)
 	db.Create(&users)
 	endTime := time.Now()
-	fmt.Fprintf(w, "%s\n", endTime)
-	fmt.Fprintf(w, "%s\n", endTime.Sub(stratTime))
+	fmt.Println("create")
+	fmt.Println(endTime.Sub(stratTime))
+	var user User
+	db.Take(&user)
+	fmt.Println(user.Name)
 }
+
+func read(db *gorm.DB) {
+	var users []User
+	stratTime := time.Now()
+	db.Find(&users)
+	endTime := time.Now()
+	fmt.Println("read")
+	fmt.Println(endTime.Sub(stratTime))
+	fmt.Println(len(users))
+}
+
+func update(db *gorm.DB, executionTimes int) {
+	var IDs []int
+	for i := 1; i <= executionTimes; i++ {
+		IDs = append(IDs, i)
+	}
+	stratTime := time.Now()
+	db.Model(User{}).Where("id IN ?", IDs).Updates(User{Name: "hello"})
+	endTime := time.Now()
+	fmt.Println("update")
+	fmt.Println(endTime.Sub(stratTime))
+	var user User
+	db.Take(&user)
+	fmt.Println(user.Name)
+}
+
+func delete(db *gorm.DB, executionTimes int) {
+	var IDs []int
+	for i := 1; i <= executionTimes; i++ {
+		IDs = append(IDs, i)
+	}
+	stratTime := time.Now()
+	db.Delete(&User{}, IDs)
+	endTime := time.Now()
+	fmt.Println("delete")
+	fmt.Println(endTime.Sub(stratTime))
+}
+
 func main() {
-	http.HandleFunc("/", greet)
-	http.HandleFunc("/create", create)
-	http.ListenAndServe(":8080", nil)
+	fmt.Println("openDB")
+	db, err := OpenDB()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("initDB")
+	db.Migrator().DropTable(&User{})
+	db.AutoMigrate(&User{})
+
+	executionTimes := 1
+	create(db, executionTimes)
+	fmt.Println("")
+	read(db)
+	fmt.Println("")
+	fmt.Println("update")
+	update(db, executionTimes)
+	fmt.Println("")
+	delete(db, executionTimes)
 }
